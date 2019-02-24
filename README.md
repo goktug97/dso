@@ -9,7 +9,7 @@ For more information see
 
 Get some datasets from [https://vision.in.tum.de/mono-dataset](https://vision.in.tum.de/mono-dataset) .
 
-# Additional dependecy
+# Additional dependency
 * PCL
 
 # Usage

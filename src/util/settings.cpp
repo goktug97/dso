@@ -205,12 +205,13 @@ bool setting_render_displayResidual = true;
 bool setting_render_displayVideo = true;
 bool setting_render_displayDepth = true;
 
+bool setting_save = false;
+
 bool setting_fullResetRequested = false;
 
 bool setting_debugout_runquiet = false;
 
 int sparsityFactor = 5;	// not actually a setting, only some legacy stuff for coarse initializer.
-
 
 void handleKey(char k)
 {

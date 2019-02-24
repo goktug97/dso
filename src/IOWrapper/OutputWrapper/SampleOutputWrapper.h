@@ -27,6 +27,9 @@
 #include "util/MinimalImage.h"
 #include "IOWrapper/Output3DWrapper.h"
 
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+
 
 
 #include "FullSystem/HessianBlocks.h"
@@ -46,14 +49,15 @@ namespace IOWrap
 class SampleOutputWrapper : public Output3DWrapper
 {
 public:
+				pcl::PointCloud<pcl::PointXYZ> cloud;
+				int max_points = 0;
         inline SampleOutputWrapper()
         {
-            printf("OUT: Created SampleOutputWrapper\n");
+
         }
 
         virtual ~SampleOutputWrapper()
         {
-            printf("OUT: Destroyed SampleOutputWrapper\n");
         }
 
         virtual void publishGraph(const std::map<uint64_t, Eigen::Vector2i, std::less<uint64_t>, Eigen::aligned_allocator<std::pair<const uint64_t, Eigen::Vector2i>>> &connectivity) override
@@ -76,35 +80,80 @@ public:
 
         virtual void publishKeyframes( std::vector<FrameHessian*> &frames, bool final, CalibHessian* HCalib) override
         {
-            for(FrameHessian* f : frames)
-            {
-                printf("OUT: KF %d (%s) (id %d, tme %f): %d active, %d marginalized, %d immature points. CameraToWorld:\n",
-                       f->frameID,
-                       final ? "final" : "non-final",
-                       f->shell->incoming_id,
-                       f->shell->timestamp,
-                       (int)f->pointHessians.size(), (int)f->pointHessiansMarginalized.size(), (int)f->immaturePoints.size());
-                std::cout << f->shell->camToWorld.matrix3x4() << "\n";
+            auto const fx = HCalib->fxl();
+            auto const fy = HCalib->fyl();
+            auto const cx = HCalib->cxl();
+            auto const cy = HCalib->cyl();
+            auto const fxi = 1/fx;
+            auto const fyi = 1/fy;
+            auto const cxi = -cx / fx;
+            auto const cyi = -cy / fy;
+            if (final) {
+              for(FrameHessian* f : frames)
+              {
+                  /*
+                   printf("OUT: KF %d (%s) (id %d, tme %f): %d active, %d marginalized, %d immature points. CameraToWorld:\n",
+                         f->frameID,
+                         final ? "final" : "non-final",
+                         f->shell->incoming_id,
+                         f->shell->timestamp,
+                         (int)f->pointHessians.size(), (int)f->pointHessiansMarginalized.size(), (int)f->immaturePoints.size());
+                  std::cout << f->shell->camToWorld.matrix3x4() << "\n";
+                  */
 
+                  // Testing the 3D points
+                  auto const & m = f->shell->camToWorld.matrix3x4();
+                  auto const & points = f->pointHessiansMarginalized;
+									this->max_points += (int)points.size();
+									for (auto const * p : points) {
+										float depth = 1.0f / p->idepth;
+										auto const x = (p->u * fxi + cxi) * depth;
+										auto const y = (p->v * fyi + cyi) * depth;
+										auto const z = depth * (1 + 2*fxi);
+										Eigen::Vector4d camPoint(x, y, z, 1.f);
+										Eigen::Vector3d worldPoint = m * camPoint;
+										pcl::PointXYZ point(worldPoint[0], worldPoint[1], worldPoint[2]); 
+										this->cloud.points.push_back(point);
 
-                int maxWrite = 5;
-                for(PointHessian* p : f->pointHessians)
-                {
-                    printf("OUT: Example Point x=%.1f, y=%.1f, idepth=%f, idepth std.dev. %f, %d inlier-residuals\n",
-                           p->u, p->v, p->idepth_scaled, sqrt(1.0f / p->idepth_hessian), p->numGoodResiduals );
-                    maxWrite--;
-                    if(maxWrite==0) break;
-                }
-            }
+										/*
+										printf("[%d] Point Cloud Coordinate> X: %.2f, Y: %.2f, Z: %.2f\n",
+												worldPoint[0],
+												worldPoint[1],
+												worldPoint[2]);
+												*/
+									}
+											// printf("Point: x=%f y=%f z=%f\n", worldPoint[0], worldPoint[1], worldPoint[2]);
+
+                  /*
+                  int maxWrite = 5;
+                  for(PointHessian* p : f->pointHessians)
+                  {
+                      printf("OUT: Example Point x=%.1f, y=%.1f, idepth=%f, idepth std.dev. %f, %d inlier-residuals\n",
+                             p->u, p->v, p->idepth_scaled, sqrt(1.0f / p->idepth_hessian), p->numGoodResiduals );
+                      maxWrite--;
+                      if(maxWrite==0) break;
+                  }
+                  */
+              }
+						}
+						if (setting_save) {
+							setting_save = false;
+							this->cloud.width = this->max_points;
+							this->cloud.height = 1;
+							this->cloud.points.resize(this->max_points);
+							pcl::io::savePCDFileASCII ("test_pcd.pcd", this->cloud);
+						}
         }
 
         virtual void publishCamPose(FrameShell* frame, CalibHessian* HCalib) override
         {
+					/*
             printf("OUT: Current Frame %d (time %f, internal ID %d). CameraToWorld:\n",
                    frame->incoming_id,
                    frame->timestamp,
                    frame->id);
             std::cout << frame->camToWorld.matrix3x4() << "\n";
+						*/
         }
 
 
@@ -145,7 +194,6 @@ public:
                 if(maxWrite==0) break;
             }
         }
-
 
 };
 

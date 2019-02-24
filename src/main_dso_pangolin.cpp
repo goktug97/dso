@@ -33,6 +33,9 @@
 #include "IOWrapper/Output3DWrapper.h"
 #include "IOWrapper/ImageDisplay.h"
 
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+
 
 #include <boost/thread.hpp>
 #include "util/settings.h"
@@ -63,7 +66,7 @@ int end=100000;
 bool prefetch = false;
 float playbackSpeed=0;	// 0 for linearize (play as fast as possible, while sequentializing tracking & mapping). otherwise, factor on timestamps.
 bool preload=false;
-bool useSampleOutput=false;
+bool useSampleOutput=true;
 
 
 int mode=0;
@@ -380,65 +383,68 @@ int main( int argc, char** argv )
 	int linc = 1;
 	if(reverse)
 	{
-		printf("REVERSE!!!!");
-		lstart=end-1;
-		if(lstart >= reader->getNumImages())
-			lstart = reader->getNumImages()-1;
-		lend = start;
-		linc = -1;
-	}
-
-
-
-	FullSystem* fullSystem = new FullSystem();
-	fullSystem->setGammaFunction(reader->getPhotometricGamma());
-	fullSystem->linearizeOperation = (playbackSpeed==0);
-
-
-
-
-
-
-
-    IOWrap::PangolinDSOViewer* viewer = 0;
-	if(!disableAllDisplay)
-    {
-        viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
-        fullSystem->outputWrapper.push_back(viewer);
+      printf("REVERSE!!!!");
+      lstart=end-1;
+      if(lstart >= reader->getNumImages())
+        lstart = reader->getNumImages()-1;
+      lend = start;
+      linc = -1;
     }
 
 
 
-    if(useSampleOutput)
-        fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
+    FullSystem* fullSystem = new FullSystem();
+    fullSystem->setGammaFunction(reader->getPhotometricGamma());
+    fullSystem->linearizeOperation = (playbackSpeed==0);
 
 
 
 
-    // to make MacOS happy: run this in dedicated thread -- and use this one to run the GUI.
-    std::thread runthread([&]() {
-        std::vector<int> idsToPlay;
-        std::vector<double> timesToPlayAt;
-        for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
-        {
-            idsToPlay.push_back(i);
-            if(timesToPlayAt.size() == 0)
-            {
-                timesToPlayAt.push_back((double)0);
-            }
-            else
-            {
-                double tsThis = reader->getTimestamp(idsToPlay[idsToPlay.size()-1]);
-                double tsPrev = reader->getTimestamp(idsToPlay[idsToPlay.size()-2]);
-                timesToPlayAt.push_back(timesToPlayAt.back() +  fabs(tsThis-tsPrev)/playbackSpeed);
-            }
-        }
 
 
-        std::vector<ImageAndExposure*> preloadedImages;
-        if(preload)
-        {
-            printf("LOADING ALL IMAGES!\n");
+
+      IOWrap::PangolinDSOViewer* viewer = 0;
+    if(!disableAllDisplay)
+      {
+          viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
+          fullSystem->outputWrapper.push_back(viewer);
+      }
+
+
+
+      IOWrap::SampleOutputWrapper* sample_wrapper = 0;
+      if(useSampleOutput){
+          sample_wrapper = new IOWrap::SampleOutputWrapper();
+          fullSystem->outputWrapper.push_back(sample_wrapper);
+      }
+
+
+
+
+      // to make MacOS happy: run this in dedicated thread -- and use this one to run the GUI.
+      std::thread runthread([&]() {
+          std::vector<int> idsToPlay;
+          std::vector<double> timesToPlayAt;
+          for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
+          {
+              idsToPlay.push_back(i);
+              if(timesToPlayAt.size() == 0)
+              {
+                  timesToPlayAt.push_back((double)0);
+              }
+              else
+              {
+                  double tsThis = reader->getTimestamp(idsToPlay[idsToPlay.size()-1]);
+                  double tsPrev = reader->getTimestamp(idsToPlay[idsToPlay.size()-2]);
+                  timesToPlayAt.push_back(timesToPlayAt.back() +  fabs(tsThis-tsPrev)/playbackSpeed);
+              }
+          }
+
+
+          std::vector<ImageAndExposure*> preloadedImages;
+          if(preload)
+          {
+              printf("LOADING ALL IMAGES!\n");
             for(int ii=0;ii<(int)idsToPlay.size(); ii++)
             {
                 int i = idsToPlay[ii];
@@ -533,6 +539,14 @@ int main( int argc, char** argv )
 
         fullSystem->printResult("result.txt");
 
+        if(useSampleOutput){
+
+            sample_wrapper->cloud.width = sample_wrapper->max_points;
+            sample_wrapper->cloud.height = 1;
+            sample_wrapper->cloud.points.resize(sample_wrapper->max_points);
+            pcl::io::savePCDFileASCII ("test_pcd.pcd", sample_wrapper->cloud);
+        }
+
 
         int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());
         double numSecondsProcessed = fabs(reader->getTimestamp(idsToPlay[0])-reader->getTimestamp(idsToPlay.back()));
@@ -568,6 +582,7 @@ int main( int argc, char** argv )
         viewer->run();
 
     runthread.join();
+
 
 	for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
 	{

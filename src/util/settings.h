@@ -77,6 +77,8 @@ extern double setting_solverModeDelta;
 extern float setting_minIdepthH_act;
 extern float setting_minIdepthH_marg;
 
+extern bool setting_save;
+
 
 
 extern float setting_maxIdepth;
@@ -203,9 +205,6 @@ void handleKey(char k);
 extern int staticPattern[10][40][2];
 extern int staticPatternNum[10];
 extern int staticPatternPadding[10];
-
-
-
 
 //#define patternNum staticPatternNum[setting_pattern]
 //#define patternP staticPattern[setting_pattern]

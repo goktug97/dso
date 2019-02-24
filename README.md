@@ -9,24 +9,28 @@ For more information see
 
 Get some datasets from [https://vision.in.tum.de/mono-dataset](https://vision.in.tum.de/mono-dataset) .
 
-Additional dependecy: PCL
+# Additional dependecy
+* PCL
 
-The usage is same as original [repo](https://github.com/JakobEngel/dso).
-I've added save option to pangolin gui also a keyboard shortcut which "s".
-I've tested with ROS2 and it works. I will put ROS2 version of dso\_ros
-but it is not as polished as dso\_ros because I was testing ROS2 and tried to
-make it work.
+# Usage
+The usage is same as the original [repo](https://github.com/JakobEngel/dso).
+I've added save option to pangolin gui
+and also added a keyboard shortcut which is "s".
+I've tested with ROS2 with camera and it works. 
+If you want to use with camera 
+You can either use 
+[DSO ROS2 Wrapper](https://github.com/goktug97/dso_ros2)
+or
+[DSO ROS Wrapper](https://github.com/JakobEngel/dso_ros)
 
 Note:
 Arch Linux uses OpenCV 4.x and Ubuntu used OpenCV 3.x so I had to change
-some of the variables in OpenCV libraries if it doesn't compile for you 
+some of the variables in OpenCV libraries if it doesn't compile for you,
 just change the OpenCV files with the original.
 
-Example point cloud from pcl\_viewer
+Example point cloud from pcl_viewer
 
 ![Example](https://github.com/goktug97/dso/blob/master/example.png)
-
-
 
 ### License
 DSO was developed at the Technical University of Munich and Intel.

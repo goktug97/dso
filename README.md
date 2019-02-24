@@ -23,7 +23,8 @@ some of the variables in OpenCV libraries if it doesn't compile for you
 just change the OpenCV files with the original.
 
 Example point cloud from pcl\_viewer
-![Example](https://raw.githubusercontent.com/goktug97/dso/blob/master/example.png)
+
+![Example](https://github.com/goktug97/dso/blob/master/example.png)
 
 
 
